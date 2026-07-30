@@ -1,47 +1,149 @@
-# AGENTS.md
+﻿# AGENTS.md — Customer Feedback Analysis Agent
 
-## Project overview
-Customer Feedback Analysis Agent — a phased sentiment analysis 
-system. Starts with a classical ML baseline (Phase 1), upgrades to 
-a fine-tuned transformer for aspect-based sentiment (Phase 2), and 
-adds an LLM fallback for low-confidence cases (Phase 3).
+> **Purpose:** This file is the single source of truth for AI coding agents (Antigravity, Copilot, Cursor, etc.) working on this repository. Read it fully before writing any code.
 
-## Architecture
-- `src/ingestion/` — loads raw review data
-- `src/preprocessing/` — cleaning, deduplication, EDA utilities
-- `src/models/` — Phase 1 logistic regression baseline; 
-  Phase 2 fine-tuned transformer added here alongside it
-- `src/agent/` — not yet in use; Phase 3 will hold the 
-  confidence router and LLM fallback logic here
-- `src/api/` — FastAPI app
-  - `main.py` — app entrypoint
-  - `routes/` — API endpoint definitions
-  - `templates/` — Jinja2 HTML templates for the dashboard
-  - `static/css/`, `static/js/` — dashboard styling and 
-    client-side logic (charts, etc.)
-- `data/raw/` — untouched source data, never overwritten
-- `data/processed/` — cleaned output
-- `tests/` — test suite
+---
 
-## Conventions
-- Python 3.x, type hints on function signatures
-- All secrets/config in `.env`, never hardcoded, never committed
-- `requirements.txt` kept pinned via `pip freeze` after installs
-- Every folder maps to a pipeline stage, not a phase — new 
-  capability gets added as files inside existing folders
+## 📖 Project Overview
 
-## Roadmap
-**Phase 1 (current)** — ingestion, cleaning, logistic regression 
-sentiment classifier (positive/negative/neutral), visualizations
+**Customer Feedback Analysis Agent** — an end-to-end ML-powered sentiment analysis system that ingests customer review data, classifies sentiment, and presents results through an interactive web dashboard.
 
-**Phase 2** — fine-tuned transformer for aspect-based sentiment
+The system classifies reviews as **positive**, **negative**, or **neutral** using a TF-IDF + Logistic Regression pipeline, exposed via a FastAPI backend with a glassmorphism dark-mode UI.
 
-**Phase 3** — confidence router + LLM fallback for low-confidence cases
+---
 
-## Current stage
-Project structure, virtual environment, git/GitHub setup complete. 
-Starting Phase 1 ingestion stage next.
+## 🏗️ Architecture Map
 
-## Commands
-- Run API: (to be filled in once it exists)
-- Run tests: (to be filled in once it exists)
+```
+src/
+├── ingestion/        Stage 1 — Load raw review data from disk
+├── preprocessing/    Stage 2 — Clean, deduplicate, normalize labels
+├── models/           Stage 3 — Train and serve ML classifiers
+│   └── artifacts/    Serialized .pkl files (NOT committed to git)
+├── agent/            Stage 4 — Analysis and decision logic
+└── api/              Stage 5 — FastAPI server + HTML dashboard
+    ├── main.py       App entrypoint and route definitions
+    ├── routes/       Modular route handlers
+    ├── templates/    Static HTML pages (dashboard, analytics, reports)
+    └── static/
+        ├── css/      Glassmorphism dark theme
+        └── js/       Chart rendering, upload handlers, WebGL background
+
+data/
+├── raw/              Original source data — NEVER overwrite or delete
+└── processed/        Output from preprocessing pipeline
+
+tests/                Pytest test suite
+```
+
+---
+
+## ⚙️ Data Contract
+
+### Training Data (`data/raw/sentiment_data.csv`)
+| Column | Type | Values |
+|---|---|---|
+| `Comment` | string | Raw review text |
+| `Sentiment` | int | `0` = negative, `1` = neutral, `2` = positive |
+
+### After `clean_data()` preprocessing
+| Column | Type | Notes |
+|---|---|---|
+| `review_text` | string | Renamed from `Comment` |
+| `sentiment` | int | Renamed from `Sentiment` |
+| `sentiment_label` | string | Mapped: `0→negative`, `1→neutral`, `2→positive` |
+
+### API Inference Input (uploaded file)
+| Column | Type | Notes |
+|---|---|---|
+| `review_text` | string | Required — exact column name |
+
+### API Response (`POST /analyze`)
+```json
+{
+  "total_reviews": 500,
+  "sentiment_counts": { "positive": 312, "negative": 88, "neutral": 100 },
+  "results": [
+    { "review_text": "...", "predicted_sentiment": "positive" }
+  ]
+}
+```
+
+---
+
+## 🧠 ML Model Details
+
+| Component | Detail |
+|---|---|
+| Vectorizer | `TfidfVectorizer(max_features=5000)` |
+| Classifier | `LogisticRegression(max_iter=1000)` |
+| Split | 80/20, stratified, `random_state=42` |
+| Output labels | `"positive"`, `"negative"`, `"neutral"` (lowercase strings) |
+| Artifacts | `src/models/artifacts/logistic_model.pkl` + `tfidf_vectorizer.pkl` |
+
+> **Important:** Both `.pkl` files must exist before the FastAPI app can start — they are loaded at import time in `predict.py`. Run `python -m src.models.train_baseline` first.
+
+---
+
+## 📡 API Routes
+
+| Method | Path | Handler | Notes |
+|---|---|---|---|
+| `GET` | `/` | `read_root` | Serves dashboard.html |
+| `GET` | `/dashboard` | `read_dashboard` | Main dashboard page |
+| `GET` | `/analytics` | `read_analytics` | Analytics charts page |
+| `GET` | `/reports` | `read_reports` | Reports summary page |
+| `GET` | `/health` | `health_check` | Returns `{"status": "ok"}` |
+| `POST` | `/analyze` | `analyze_reviews` | File upload → sentiment JSON |
+
+---
+
+## 📐 Coding Conventions
+
+| Rule | Detail |
+|---|---|
+| **Language** | Python 3.x only |
+| **Type hints** | Required on ALL function signatures — no bare `def foo(x):` |
+| **Secrets** | `.env` only — never hardcoded, never committed to git |
+| **Dependencies** | Run `pip freeze > requirements.txt` after every `pip install` |
+| **Folder structure** | Each folder = one pipeline stage. Add new **files** inside existing folders |
+| **Data immutability** | `data/raw/` is read-only — preprocessing output goes to `data/processed/` |
+| **Model artifacts** | Never commit `.pkl` files to git. Generated by `train_baseline.py` |
+| **Code style** | Follow PEP 8. Use descriptive variable names |
+
+---
+
+## 🚫 Do NOT
+
+- Hardcode any API keys, tokens, or credentials
+- Modify or delete files in `data/raw/`
+- Commit `.pkl` model artifacts or the `.env` file
+- Create new top-level `src/` folders without a clear architectural reason
+- Remove or replace existing modules — extend alongside them
+
+---
+
+## 🧪 Testing Guidelines
+
+- Tests live in `tests/`
+- Use `pytest`
+- Test each pipeline stage independently (ingestion, preprocessing, model, API)
+- Use fixture CSV files in tests — do NOT depend on live `data/raw/` files
+
+---
+
+## 🖥️ Commands
+
+```bash
+# Train the model (must be done before starting the API)
+python -m src.models.train_baseline
+
+# Start the API server (development with hot reload)
+uvicorn src.api.main:app --reload --host 0.0.0.0 --port 8000
+
+# Run all tests
+pytest tests/ -v
+
+# Pin dependencies after installing new packages
+pip freeze > requirements.txt
+```
