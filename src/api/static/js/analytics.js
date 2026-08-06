@@ -377,9 +377,10 @@ function initInteractivePieChart(data) {
                 }
 
                 if (legendEl) {
-                    legendEl.style.borderColor = '';
-                    legendEl.style.backgroundColor = '';
-                    legendEl.style.color = '';
+                    const isDarkTheme = document.documentElement.classList.contains('dark');
+                    legendEl.style.borderColor = isDarkTheme ? 'rgba(255, 255, 255, 0.15)' : '#cbd5e1';
+                    legendEl.style.backgroundColor = isDarkTheme ? 'rgba(255, 255, 255, 0.05)' : '#f1f5f9';
+                    legendEl.style.color = isDarkTheme ? '#cbd5e1' : '#0f172a';
                     legendEl.style.transform = 'scale(1)';
                     legendEl.style.boxShadow = 'none';
                 }
@@ -398,8 +399,43 @@ function renderDetailsCard(cat, data, total, isPinned) {
     const card = document.getElementById('pie-details-card');
     if (!card) return;
 
+    const isDark = document.documentElement.classList.contains('dark');
     const results = data.results || [];
     const sentimentResults = results.filter(r => (r.predicted_sentiment || '').toLowerCase() === cat.key);
+
+    const textColorMain = isDark ? '#f8fafc' : '#0f172a';
+    const textColorSub = isDark ? '#cbd5e1' : '#334155';
+    const cardBg = isDark ? 'rgba(255, 255, 255, 0.04)' : '#f1f5f9';
+    const cardBorder = isDark ? 'rgba(255, 255, 255, 0.1)' : '#cbd5e1';
+
+    const catColors = {
+        positive: {
+            barColor: isDark ? '#2dd4bf' : '#0d9488',
+            badgeBg: isDark ? 'rgba(45, 212, 191, 0.2)' : '#ccfbf1',
+            badgeText: isDark ? '#2dd4bf' : '#0f766e',
+            badgeBorder: isDark ? 'rgba(45, 212, 191, 0.4)' : '#5eead4',
+            iconColor: isDark ? '#2dd4bf' : '#0d9488',
+            quoteIcon: isDark ? '#2dd4bf' : '#0f766e'
+        },
+        neutral: {
+            barColor: isDark ? '#818cf8' : '#4f46e5',
+            badgeBg: isDark ? 'rgba(129, 140, 248, 0.2)' : '#e0e7ff',
+            badgeText: isDark ? '#818cf8' : '#4338ca',
+            badgeBorder: isDark ? 'rgba(129, 140, 248, 0.4)' : '#a5b4fc',
+            iconColor: isDark ? '#818cf8' : '#4f46e5',
+            quoteIcon: isDark ? '#818cf8' : '#4338ca'
+        },
+        negative: {
+            barColor: isDark ? '#fb7185' : '#e11d48',
+            badgeBg: isDark ? 'rgba(251, 113, 133, 0.2)' : '#ffe4e6',
+            badgeText: isDark ? '#fb7185' : '#be123c',
+            badgeBorder: isDark ? 'rgba(251, 113, 133, 0.4)' : '#fda4af',
+            iconColor: isDark ? '#fb7185' : '#e11d48',
+            quoteIcon: isDark ? '#fb7185' : '#be123c'
+        }
+    };
+
+    const currentTheme = catColors[cat.key] || catColors.positive;
 
     // Extract Keywords
     const stopWords = new Set(['the','be','to','of','and','a','in','that','have','i','it','for','not','on','with','he','as','you','do','at','this','but','his','by','from','they','we','say','her','she','or','an','will','my','one','all','would','there','their','what','so','up','out','if','about','who','get','which','go','me','when','make','can','like','time','no','just','him','know','take','people','into','year','your','good','some','could','them','see','other','than','then','now','look','only','come','its','over','think','also','back','after','use','two','how','our','work','first','well','way','even','new','want','because','any','these','give','day','most','us','is','are','was','were','been','has','had','having']);
@@ -434,24 +470,24 @@ function renderDetailsCard(cat, data, total, isPinned) {
     card.innerHTML = `
         <div>
             <!-- Top Header & Demo Indicator -->
-            <div class="flex items-center justify-between gap-4 mb-4 pb-4 border-b border-slate-300/80 dark:border-white/10">
+            <div class="flex items-center justify-between gap-4 mb-4 pb-4 border-b border-slate-300 dark:border-white/10">
                 <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-xl flex items-center justify-center border shadow-inner" style="background-color: ${cat.color}20; border-color: ${cat.color}40; color: ${cat.color}">
+                    <div class="w-10 h-10 rounded-xl flex items-center justify-center border shadow-sm" style="background-color: ${cat.color}25; border-color: ${cat.color}60; color: ${currentTheme.iconColor}">
                         <span class="material-symbols-outlined text-2xl">${cat.icon}</span>
                     </div>
                     <div>
-                        <h4 class="text-lg font-bold font-heading text-slate-900 dark:text-slate-100 tracking-tight">${cat.label}</h4>
-                        <p class="text-xs text-slate-600 dark:text-slate-400 font-mono">${cat.count.toLocaleString()} of ${total.toLocaleString()} total customer reviews</p>
+                        <h4 class="text-lg font-extrabold font-heading tracking-tight" style="color: ${textColorMain}">${cat.label}</h4>
+                        <p class="text-xs font-mono font-bold" style="color: ${textColorSub}">${cat.count.toLocaleString()} of ${total.toLocaleString()} total customer reviews</p>
                     </div>
                 </div>
 
                 <div class="flex items-center gap-2">
                     ${data.isDemo ? `
-                        <span class="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30">
+                        <span class="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold" style="background-color: ${isDark ? 'rgba(245, 158, 11, 0.2)' : '#fef3c7'}; color: ${isDark ? '#fbbf24' : '#92400e'}; border: 1px solid ${isDark ? 'rgba(245, 158, 11, 0.4)' : '#fde68a'}">
                             Demo Data
                         </span>
                     ` : ''}
-                    <span class="px-3 py-1 rounded-full text-xs font-mono font-bold border ${cat.badgeBg}">
+                    <span class="px-3 py-1 rounded-full text-xs font-mono font-extrabold border" style="background-color: ${currentTheme.badgeBg}; color: ${currentTheme.badgeText}; border-color: ${currentTheme.badgeBorder}">
                         ${cat.pct}% Volume
                     </span>
                 </div>
@@ -460,24 +496,24 @@ function renderDetailsCard(cat, data, total, isPinned) {
             <!-- Percentage Fill Progress Bar -->
             <div class="mb-5">
                 <div class="flex justify-between items-center text-xs font-mono mb-1.5">
-                    <span class="text-slate-700 dark:text-slate-300 font-medium">Category Share</span>
-                    <span class="font-bold" style="color: ${cat.color}">${cat.pct}%</span>
+                    <span class="font-extrabold uppercase tracking-wider" style="color: ${textColorMain}">Category Share</span>
+                    <span class="font-extrabold text-sm" style="color: ${currentTheme.barColor}">${cat.pct}%</span>
                 </div>
-                <div class="w-full h-2.5 rounded-full bg-slate-200 dark:bg-white/10 overflow-hidden border border-slate-300/50 dark:border-transparent">
-                    <div class="h-full rounded-full transition-all duration-500 ease-out" style="width: ${cat.pct}%; background-color: ${cat.color}"></div>
+                <div class="w-full h-3 rounded-full overflow-hidden border" style="background-color: ${isDark ? 'rgba(255, 255, 255, 0.1)' : '#cbd5e1'}; border-color: ${isDark ? 'transparent' : '#94a3b8'}">
+                    <div class="h-full rounded-full transition-all duration-500 ease-out" style="width: ${cat.pct}%; background-color: ${currentTheme.barColor}"></div>
                 </div>
             </div>
 
             <!-- Extracted Keywords Tags -->
             <div class="mb-5">
-                <div class="text-xs font-mono font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-2 flex items-center gap-1.5">
-                    <span class="material-symbols-outlined text-sm text-indigo-600 dark:text-indigo-400">label</span>
+                <div class="text-xs font-mono font-extrabold uppercase tracking-wider mb-2 flex items-center gap-1.5" style="color: ${textColorMain}">
+                    <span class="material-symbols-outlined text-base" style="color: ${currentTheme.barColor}">label</span>
                     <span>Top Mentioned Key Topics</span>
                 </div>
                 <div class="flex flex-wrap gap-2">
                     ${keywordsList.map(kw => `
-                        <span class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-100 dark:bg-white/5 border border-slate-300 dark:border-white/10 text-slate-800 dark:text-slate-200 capitalize flex items-center gap-1 shadow-sm">
-                            <span class="w-1.5 h-1.5 rounded-full" style="background-color: ${cat.color}"></span>
+                        <span class="px-3 py-1 rounded-lg text-xs font-extrabold capitalize flex items-center gap-1.5 shadow-sm border" style="background-color: ${cardBg}; color: ${textColorMain}; border-color: ${cardBorder}">
+                            <span class="w-2 h-2 rounded-full shrink-0" style="background-color: ${currentTheme.barColor}"></span>
                             <span>${kw}</span>
                         </span>
                     `).join('')}
@@ -486,18 +522,18 @@ function renderDetailsCard(cat, data, total, isPinned) {
 
             <!-- Representative Review Samples -->
             <div>
-                <div class="text-xs font-mono font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-2 flex items-center gap-1.5">
-                    <span class="material-symbols-outlined text-sm text-indigo-600 dark:text-indigo-400">rate_review</span>
+                <div class="text-xs font-mono font-extrabold uppercase tracking-wider mb-2 flex items-center gap-1.5" style="color: ${textColorMain}">
+                    <span class="material-symbols-outlined text-base" style="color: ${currentTheme.barColor}">rate_review</span>
                     <span>Sample Customer Feedback</span>
                 </div>
                 <div class="space-y-2.5">
                     ${sampleReviews.length > 0 ? sampleReviews.map(r => `
-                        <div class="p-3 rounded-xl bg-slate-100/90 dark:bg-white/[0.04] border border-slate-300/80 dark:border-white/10 text-xs text-slate-800 dark:text-slate-200 font-medium italic flex items-start gap-2.5 shadow-sm">
-                            <span class="material-symbols-outlined text-sm shrink-0 mt-0.5" style="color: ${cat.color}">format_quote</span>
-                            <span class="line-clamp-2">${escapeHtml(r.review_text)}</span>
+                        <div class="p-3.5 rounded-xl border text-xs font-semibold italic flex items-start gap-2.5 shadow-sm" style="background-color: ${cardBg}; color: ${textColorMain}; border-color: ${cardBorder}">
+                            <span class="material-symbols-outlined text-base shrink-0 mt-0.5" style="color: ${currentTheme.quoteIcon}">format_quote</span>
+                            <span class="line-clamp-2 leading-relaxed" style="color: ${textColorMain}">${escapeHtml(r.review_text)}</span>
                         </div>
                     `).join('') : `
-                        <div class="p-3 rounded-xl bg-slate-100/50 dark:bg-white/[0.02] text-xs text-slate-500 dark:text-slate-400 italic">
+                        <div class="p-3.5 rounded-xl text-xs italic font-semibold border" style="background-color: ${cardBg}; color: ${textColorSub}; border-color: ${cardBorder}">
                             No feedback samples found for this category.
                         </div>
                     `}
@@ -505,10 +541,10 @@ function renderDetailsCard(cat, data, total, isPinned) {
             </div>
         </div>
 
-        <div class="mt-4 pt-3 border-t border-slate-300/80 dark:border-white/5 flex items-center justify-between text-[11px] font-mono text-slate-600 dark:text-slate-400">
+        <div class="mt-4 pt-3 border-t flex items-center justify-between text-xs font-mono font-bold" style="border-color: ${cardBorder}; color: ${textColorSub}">
             <span>Hover/Click slice or legend to interact</span>
-            <span class="flex items-center gap-1 font-semibold" style="color: ${cat.color}">
-                <span class="material-symbols-outlined text-xs">info</span>
+            <span class="flex items-center gap-1 font-extrabold" style="color: ${currentTheme.barColor}">
+                <span class="material-symbols-outlined text-sm">info</span>
                 <span>Real-time NLP breakdown</span>
             </span>
         </div>
