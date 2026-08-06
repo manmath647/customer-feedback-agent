@@ -1,40 +1,44 @@
-// Analytics Controller (Dynamic Canvas Trend Curve & Interactive Three.js 3D Sentiment Sphere Cluster)
+// Analytics Controller (Dynamic Canvas Trend Curve & Interactive Responsive Pie Chart)
+
+const SAMPLE_DEMO_DATA = {
+    total_reviews: 120,
+    sentiment_counts: {
+        positive: 68,
+        neutral: 32,
+        negative: 20
+    },
+    results: [
+        { review_text: "Extremely intuitive UI and lightning-fast sentiment analysis accuracy!", predicted_sentiment: "positive" },
+        { review_text: "Great dashboard layout with real-time NLP trend charts and visual insights.", predicted_sentiment: "positive" },
+        { review_text: "Love the interactive pie chart and instant feedback highlights.", predicted_sentiment: "positive" },
+        { review_text: "Customer support was fast, helpful, and resolved my issue immediately.", predicted_sentiment: "positive" },
+        { review_text: "Standard performance, meets basic expectations for report generation.", predicted_sentiment: "neutral" },
+        { review_text: "CSV upload worked fine after setting column headers properly.", predicted_sentiment: "neutral" },
+        { review_text: "Would like to see more custom theme options in future updates.", predicted_sentiment: "neutral" },
+        { review_text: "Slow response time during large batch processing of 10,000+ rows.", predicted_sentiment: "negative" },
+        { review_text: "File parsing error when uploading unsupported file format.", predicted_sentiment: "negative" }
+    ],
+    isDemo: true
+};
 
 document.addEventListener('DOMContentLoaded', () => {
-    const data = window.FeedbackAgentData.get();
+    let data = window.FeedbackAgentData ? window.FeedbackAgentData.get() : null;
 
-    if (!data) {
-        showEmptyState();
-        return;
+    const rawCounts = data ? (data.sentiment_counts || {}) : {};
+    const totalCount = (rawCounts.positive || 0) + (rawCounts.neutral || 0) + (rawCounts.negative || 0);
+
+    if (!data || totalCount === 0 || !data.results || data.results.length === 0) {
+        data = SAMPLE_DEMO_DATA;
     }
 
     renderAnalytics(data);
-    init3DSentimentCluster(data);
+    initInteractivePieChart(data);
 });
-
-function showEmptyState() {
-    const container = document.getElementById('analytics-content');
-    if (container) {
-        container.innerHTML = `
-            <div class="glass-card rounded-2xl p-12 text-center my-12 max-w-xl mx-auto">
-                <span class="material-symbols-outlined text-6xl text-indigo-400 mb-4 animate-bounce">insights</span>
-                <h2 class="text-2xl font-bold font-heading text-main mb-2">No Analysis Data Available</h2>
-                <p class="text-slate-400 max-w-md mx-auto mb-6 text-sm">
-                    Please upload a customer feedback file on the Dashboard page to generate deep visual analytics.
-                </p>
-                <a href="/dashboard" class="btn-tactile btn-primary px-6 py-3 rounded-full text-sm font-semibold">
-                    <span class="material-symbols-outlined text-lg">dashboard</span>
-                    <span>Go to Dashboard</span>
-                </a>
-            </div>
-        `;
-    }
-}
 
 function renderAnalytics(data) {
     const results = data.results || [];
     const counts = data.sentiment_counts || { positive: 0, neutral: 0, negative: 0 };
-    const total = data.total_reviews || results.length || 1;
+    const total = data.total_reviews || (counts.positive + counts.neutral + counts.negative) || 1;
 
     const posPct = Math.round(((counts.positive || 0) / total) * 100);
     const neuPct = Math.round(((counts.neutral || 0) / total) * 100);
@@ -153,88 +157,370 @@ function renderTrendChart(results) {
     });
 }
 
-// --- Interactive 3D Three.js Sentiment Sphere Cluster ---
-function init3DSentimentCluster(data) {
-    const container = document.getElementById('analytics-3d-scene');
-    if (!container || typeof THREE === 'undefined') return;
+// --- Interactive Modern Responsive SVG Donut / Pie Chart ---
+function polarToCartesian(centerX, centerY, radius, angleInRadians) {
+    return {
+        x: centerX + (radius * Math.cos(angleInRadians)),
+        y: centerY + (radius * Math.sin(angleInRadians))
+    };
+}
+
+function describeDonutSegment(x, y, innerRadius, outerRadius, startAngle, endAngle) {
+    const isFullCircle = (endAngle - startAngle) >= (2 * Math.PI - 0.0001);
+    if (isFullCircle) {
+        endAngle = startAngle + 2 * Math.PI - 0.0001;
+    }
+    const startOuter = polarToCartesian(x, y, outerRadius, endAngle);
+    const endOuter = polarToCartesian(x, y, outerRadius, startAngle);
+    const startInner = polarToCartesian(x, y, innerRadius, startAngle);
+    const endInner = polarToCartesian(x, y, innerRadius, endAngle);
+
+    const largeArcFlag = (endAngle - startAngle) <= Math.PI ? "0" : "1";
+
+    return [
+        "M", startOuter.x, startOuter.y,
+        "A", outerRadius, outerRadius, 0, largeArcFlag, 0, endOuter.x, endOuter.y,
+        "L", startInner.x, startInner.y,
+        "A", innerRadius, innerRadius, 0, largeArcFlag, 1, endInner.x, endInner.y,
+        "Z"
+    ].join(" ");
+}
+
+function initInteractivePieChart(data) {
+    const slicesGroup = document.getElementById('pie-slices-group');
+    const legendContainer = document.getElementById('pie-legend');
+    const detailsCard = document.getElementById('pie-details-card');
+    const centerLabel = document.getElementById('pie-center-label');
+    const centerValue = document.getElementById('pie-center-value');
+    const centerSub = document.getElementById('pie-center-sub');
+
+    if (!slicesGroup || !legendContainer || !detailsCard) return;
 
     const counts = data.sentiment_counts || { positive: 0, neutral: 0, negative: 0 };
-    const total = data.total_reviews || 1;
+    const total = data.total_reviews || (counts.positive + counts.neutral + counts.negative) || 1;
 
-    const width = container.clientWidth || 800;
-    const height = 360;
+    const categories = [
+        {
+            key: 'positive',
+            label: 'Positive Sentiment',
+            shortLabel: 'Positive',
+            count: counts.positive || 0,
+            color: '#2dd4bf',
+            gradientId: 'grad-positive',
+            glowColor: 'rgba(45, 212, 191, 0.6)',
+            icon: 'sentiment_very_satisfied',
+            badgeBg: 'bg-teal-500/15 text-teal-800 dark:text-teal-300 border-teal-500/40'
+        },
+        {
+            key: 'neutral',
+            label: 'Neutral Sentiment',
+            shortLabel: 'Neutral',
+            count: counts.neutral || 0,
+            color: '#818cf8',
+            gradientId: 'grad-neutral',
+            glowColor: 'rgba(129, 140, 248, 0.6)',
+            icon: 'sentiment_neutral',
+            badgeBg: 'bg-indigo-500/15 text-indigo-800 dark:text-indigo-300 border-indigo-500/40'
+        },
+        {
+            key: 'negative',
+            label: 'Negative Sentiment',
+            shortLabel: 'Negative',
+            count: counts.negative || 0,
+            color: '#fb7185',
+            gradientId: 'grad-negative',
+            glowColor: 'rgba(251, 113, 133, 0.6)',
+            icon: 'sentiment_very_dissatisfied',
+            badgeBg: 'bg-rose-500/15 text-rose-800 dark:text-rose-300 border-rose-500/40'
+        }
+    ];
 
-    const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(60, width / height, 0.1, 1000);
-    const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
-    renderer.setSize(width, height);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    container.appendChild(renderer.domElement);
-
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.9);
-    scene.add(ambientLight);
-
-    const dirLight = new THREE.DirectionalLight(0x818cf8, 1.4);
-    dirLight.position.set(5, 10, 7);
-    scene.add(dirLight);
-
-    const group = new THREE.Group();
-
-    // Positive Glass Sphere
-    const posGeo = new THREE.SphereGeometry(Math.max(0.8, (counts.positive / total) * 2), 32, 32);
-    const posMat = new THREE.MeshPhongMaterial({
-        color: 0x2dd4bf,
-        emissive: 0x0f766e,
-        transparent: true,
-        opacity: 0.8,
-        shininess: 90
+    categories.forEach(cat => {
+        cat.pct = Math.round((cat.count / total) * 100);
     });
-    const posMesh = new THREE.Mesh(posGeo, posMat);
-    posMesh.position.set(-2.2, 0, 0);
-    group.add(posMesh);
 
-    // Neutral Glass Sphere
-    const neuGeo = new THREE.SphereGeometry(Math.max(0.8, (counts.neutral / total) * 2), 32, 32);
-    const neuMat = new THREE.MeshPhongMaterial({
-        color: 0x94a3b8,
-        emissive: 0x334155,
-        transparent: true,
-        opacity: 0.8,
-        shininess: 90
+    // Find default active category (max count)
+    let maxCat = categories.reduce((max, c) => (c.count > max.count ? c : max), categories[0]);
+    let activeKey = maxCat.key;
+    let isPinned = false;
+
+    // Clear SVG and Legend
+    slicesGroup.innerHTML = '';
+    legendContainer.innerHTML = '';
+
+    const innerR = 64;
+    const outerR = 98;
+    const explodeDist = 14;
+
+    let currentAngle = -Math.PI / 2;
+    const sliceElements = {};
+    const legendElements = {};
+
+    categories.forEach(cat => {
+        // Calculate angle span even for small counts
+        const angleSpan = total > 0 ? (cat.count / total) * 2 * Math.PI : 0;
+        const startAngle = currentAngle;
+        const endAngle = currentAngle + angleSpan;
+        const midAngle = (startAngle + endAngle) / 2;
+        currentAngle = endAngle;
+
+        const dx = Math.cos(midAngle) * explodeDist;
+        const dy = Math.sin(midAngle) * explodeDist;
+
+        cat.dx = dx;
+        cat.dy = dy;
+
+        // Render SVG slice path if count > 0
+        if (cat.count > 0 && angleSpan > 0.001) {
+            const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            path.setAttribute('d', describeDonutSegment(0, 0, innerR, outerR, startAngle, endAngle));
+            path.setAttribute('fill', `url(#${cat.gradientId})`);
+            path.setAttribute('stroke', 'rgba(255,255,255,0.2)');
+            path.setAttribute('stroke-width', '1.5');
+            path.style.transition = 'transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), filter 0.35s ease, opacity 0.25s ease';
+            path.style.transformOrigin = '0px 0px';
+            path.style.cursor = 'pointer';
+
+            path.addEventListener('mouseenter', () => {
+                if (!isPinned || activeKey !== cat.key) {
+                    activateCategory(cat.key, false);
+                }
+            });
+
+            path.addEventListener('click', () => {
+                if (isPinned && activeKey === cat.key) {
+                    isPinned = false;
+                } else {
+                    isPinned = true;
+                    activateCategory(cat.key, true);
+                }
+            });
+
+            slicesGroup.appendChild(path);
+            sliceElements[cat.key] = path;
+        }
+
+        // Legend Button (rendered for all categories)
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = `px-3.5 py-1.5 rounded-full border text-xs font-mono font-semibold flex items-center gap-2 transition-all duration-200 cursor-pointer active:scale-95 text-slate-800 dark:text-slate-200 border-slate-300 dark:border-white/10 bg-white/60 dark:bg-white/5`;
+        btn.innerHTML = `
+            <span class="w-2.5 h-2.5 rounded-full" style="background-color: ${cat.color}"></span>
+            <span>${cat.shortLabel}</span>
+            <span class="opacity-75 font-bold">(${cat.pct}%)</span>
+        `;
+
+        btn.addEventListener('mouseenter', () => {
+            if (!isPinned || activeKey !== cat.key) {
+                activateCategory(cat.key, false);
+            }
+        });
+
+        btn.addEventListener('click', () => {
+            if (isPinned && activeKey === cat.key) {
+                isPinned = false;
+            } else {
+                isPinned = true;
+                activateCategory(cat.key, true);
+            }
+        });
+
+        legendContainer.appendChild(btn);
+        legendElements[cat.key] = btn;
     });
-    const neuMesh = new THREE.Mesh(neuGeo, neuMat);
-    neuMesh.position.set(0, 0, 0);
-    group.add(neuMesh);
 
-    // Negative Glass Sphere
-    const negGeo = new THREE.SphereGeometry(Math.max(0.8, (counts.negative / total) * 2), 32, 32);
-    const negMat = new THREE.MeshPhongMaterial({
-        color: 0xfb7185,
-        emissive: 0x9f1239,
-        transparent: true,
-        opacity: 0.8,
-        shininess: 90
+    const svgChart = document.getElementById('pie-chart-svg');
+    if (svgChart) {
+        svgChart.addEventListener('mouseleave', () => {
+            if (!isPinned) {
+                activateCategory(maxCat.key, false);
+            }
+        });
+    }
+
+    function activateCategory(key, userClicked = false) {
+        activeKey = key;
+        const targetCat = categories.find(c => c.key === key) || maxCat;
+
+        // Center overlay update
+        if (centerLabel) centerLabel.textContent = targetCat.shortLabel;
+        if (centerValue) {
+            centerValue.textContent = `${targetCat.pct}%`;
+            centerValue.style.color = targetCat.color;
+        }
+        if (centerSub) centerSub.textContent = `${targetCat.count.toLocaleString()} reviews`;
+
+        // Update Slice explosion transform
+        categories.forEach(c => {
+            const pathEl = sliceElements[c.key];
+            const legendEl = legendElements[c.key];
+
+            if (c.key === key) {
+                if (pathEl) {
+                    pathEl.style.transform = `translate(${c.dx}px, ${c.dy}px) scale(1.04)`;
+                    pathEl.style.filter = `drop-shadow(0 0 16px ${c.glowColor})`;
+                    pathEl.style.opacity = '1';
+                }
+
+                if (legendEl) {
+                    legendEl.style.borderColor = c.color;
+                    legendEl.style.backgroundColor = `${c.color}25`;
+                    legendEl.style.color = c.color;
+                    legendEl.style.transform = 'scale(1.05)';
+                    legendEl.style.boxShadow = `0 0 12px ${c.glowColor}`;
+                }
+            } else {
+                if (pathEl) {
+                    pathEl.style.transform = 'translate(0px, 0px) scale(1)';
+                    pathEl.style.filter = 'none';
+                    pathEl.style.opacity = '0.7';
+                }
+
+                if (legendEl) {
+                    legendEl.style.borderColor = '';
+                    legendEl.style.backgroundColor = '';
+                    legendEl.style.color = '';
+                    legendEl.style.transform = 'scale(1)';
+                    legendEl.style.boxShadow = 'none';
+                }
+            }
+        });
+
+        // Render Right Info Card
+        renderDetailsCard(targetCat, data, total, isPinned);
+    }
+
+    // Initial activation
+    activateCategory(maxCat.key, false);
+}
+
+function renderDetailsCard(cat, data, total, isPinned) {
+    const card = document.getElementById('pie-details-card');
+    if (!card) return;
+
+    const results = data.results || [];
+    const sentimentResults = results.filter(r => (r.predicted_sentiment || '').toLowerCase() === cat.key);
+
+    // Extract Keywords
+    const stopWords = new Set(['the','be','to','of','and','a','in','that','have','i','it','for','not','on','with','he','as','you','do','at','this','but','his','by','from','they','we','say','her','she','or','an','will','my','one','all','would','there','their','what','so','up','out','if','about','who','get','which','go','me','when','make','can','like','time','no','just','him','know','take','people','into','year','your','good','some','could','them','see','other','than','then','now','look','only','come','its','over','think','also','back','after','use','two','how','our','work','first','well','way','even','new','want','because','any','these','give','day','most','us','is','are','was','were','been','has','had','having']);
+
+    const wordCounts = {};
+    sentimentResults.forEach(item => {
+        const text = (item.review_text || '').toLowerCase().replace(/[^a-z0-9\s]/g, ' ');
+        const tokens = text.split(/\s+/).filter(w => w.length > 2 && !stopWords.has(w));
+        tokens.forEach(word => {
+            wordCounts[word] = (wordCounts[word] || 0) + 1;
+        });
     });
-    const negMesh = new THREE.Mesh(negGeo, negMat);
-    negMesh.position.set(2.2, 0, 0);
-    group.add(negMesh);
 
-    scene.add(group);
-    camera.position.set(0, 0, 6.5);
+    const topKeywords = Object.entries(wordCounts)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 6)
+        .map(entry => entry[0]);
 
-    const animate = () => {
-        requestAnimationFrame(animate);
-        group.rotation.y += 0.006;
-        group.rotation.x += 0.002;
-        renderer.render(scene, camera);
+    const defaultKeywords = {
+        positive: ['UI Quality', 'Performance', 'Accuracy', 'Support', 'Fast', 'Usability'],
+        neutral: ['Formatting', 'Headers', 'Standard', 'Batching', 'Average'],
+        negative: ['Response Time', 'File Error', 'Parsing', 'Timeout', 'Bugs']
     };
-    animate();
 
-    window.addEventListener('resize', () => {
-        const w = container.clientWidth || 800;
-        const h = container.clientHeight || 360;
-        camera.aspect = w / h;
-        camera.updateProjectionMatrix();
-        renderer.setSize(w, h);
-    });
+    const keywordsList = topKeywords.length > 0
+        ? topKeywords
+        : (defaultKeywords[cat.key] || ['Quality', 'Performance', 'Usability']);
+
+    // Pick Sample Reviews
+    const sampleReviews = sentimentResults.slice(0, 2);
+
+    card.innerHTML = `
+        <div>
+            <!-- Top Header & Demo Indicator -->
+            <div class="flex items-center justify-between gap-4 mb-4 pb-4 border-b border-slate-300/80 dark:border-white/10">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl flex items-center justify-center border shadow-inner" style="background-color: ${cat.color}20; border-color: ${cat.color}40; color: ${cat.color}">
+                        <span class="material-symbols-outlined text-2xl">${cat.icon}</span>
+                    </div>
+                    <div>
+                        <h4 class="text-lg font-bold font-heading text-slate-900 dark:text-slate-100 tracking-tight">${cat.label}</h4>
+                        <p class="text-xs text-slate-600 dark:text-slate-400 font-mono">${cat.count.toLocaleString()} of ${total.toLocaleString()} total customer reviews</p>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-2">
+                    ${data.isDemo ? `
+                        <span class="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30">
+                            Demo Data
+                        </span>
+                    ` : ''}
+                    <span class="px-3 py-1 rounded-full text-xs font-mono font-bold border ${cat.badgeBg}">
+                        ${cat.pct}% Volume
+                    </span>
+                </div>
+            </div>
+
+            <!-- Percentage Fill Progress Bar -->
+            <div class="mb-5">
+                <div class="flex justify-between items-center text-xs font-mono mb-1.5">
+                    <span class="text-slate-700 dark:text-slate-300 font-medium">Category Share</span>
+                    <span class="font-bold" style="color: ${cat.color}">${cat.pct}%</span>
+                </div>
+                <div class="w-full h-2.5 rounded-full bg-slate-200 dark:bg-white/10 overflow-hidden border border-slate-300/50 dark:border-transparent">
+                    <div class="h-full rounded-full transition-all duration-500 ease-out" style="width: ${cat.pct}%; background-color: ${cat.color}"></div>
+                </div>
+            </div>
+
+            <!-- Extracted Keywords Tags -->
+            <div class="mb-5">
+                <div class="text-xs font-mono font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-2 flex items-center gap-1.5">
+                    <span class="material-symbols-outlined text-sm text-indigo-600 dark:text-indigo-400">label</span>
+                    <span>Top Mentioned Key Topics</span>
+                </div>
+                <div class="flex flex-wrap gap-2">
+                    ${keywordsList.map(kw => `
+                        <span class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-100 dark:bg-white/5 border border-slate-300 dark:border-white/10 text-slate-800 dark:text-slate-200 capitalize flex items-center gap-1 shadow-sm">
+                            <span class="w-1.5 h-1.5 rounded-full" style="background-color: ${cat.color}"></span>
+                            <span>${kw}</span>
+                        </span>
+                    `).join('')}
+                </div>
+            </div>
+
+            <!-- Representative Review Samples -->
+            <div>
+                <div class="text-xs font-mono font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-2 flex items-center gap-1.5">
+                    <span class="material-symbols-outlined text-sm text-indigo-600 dark:text-indigo-400">rate_review</span>
+                    <span>Sample Customer Feedback</span>
+                </div>
+                <div class="space-y-2.5">
+                    ${sampleReviews.length > 0 ? sampleReviews.map(r => `
+                        <div class="p-3 rounded-xl bg-slate-100/90 dark:bg-white/[0.04] border border-slate-300/80 dark:border-white/10 text-xs text-slate-800 dark:text-slate-200 font-medium italic flex items-start gap-2.5 shadow-sm">
+                            <span class="material-symbols-outlined text-sm shrink-0 mt-0.5" style="color: ${cat.color}">format_quote</span>
+                            <span class="line-clamp-2">${escapeHtml(r.review_text)}</span>
+                        </div>
+                    `).join('') : `
+                        <div class="p-3 rounded-xl bg-slate-100/50 dark:bg-white/[0.02] text-xs text-slate-500 dark:text-slate-400 italic">
+                            No feedback samples found for this category.
+                        </div>
+                    `}
+                </div>
+            </div>
+        </div>
+
+        <div class="mt-4 pt-3 border-t border-slate-300/80 dark:border-white/5 flex items-center justify-between text-[11px] font-mono text-slate-600 dark:text-slate-400">
+            <span>Hover/Click slice or legend to interact</span>
+            <span class="flex items-center gap-1 font-semibold" style="color: ${cat.color}">
+                <span class="material-symbols-outlined text-xs">info</span>
+                <span>Real-time NLP breakdown</span>
+            </span>
+        </div>
+    `;
+}
+
+function escapeHtml(str) {
+    if (!str) return '';
+    return str
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
 }
