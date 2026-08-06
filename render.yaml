@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: customer-feedback-agent
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn -w 2 -k uvicorn.workers.UvicornWorker src.api.main:app --bind 0.0.0.0:$PORT --timeout 120 --log-level info
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+    healthCheckPath: /health
+    autoDeploy: true

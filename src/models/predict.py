@@ -2,7 +2,8 @@
 import joblib
 from pathlib import Path
 
-MODEL_DIR = Path("src/models/artifacts")
+# Use absolute path relative to this file so it works regardless of CWD (e.g. on Render)
+MODEL_DIR = Path(__file__).resolve().parent / "artifacts"
 
 _model = joblib.load(MODEL_DIR/"logistic_model.pkl")
 _vectorizer = joblib.load(MODEL_DIR/"tfidf_vectorizer.pkl")

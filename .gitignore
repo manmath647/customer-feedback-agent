@@ -1,5 +1,34 @@
+# Python
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+**/*.pyd
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Virtual environments
 venv/
+.venv/
+env/
+
+# Environment secrets — never commit
 .env
-__pycache__/
-*.pyc
+.env.*
+!.env.example
+
+# Raw / sensitive data
 data/raw/
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# NOTE: src/models/artifacts/*.pkl files ARE intentionally committed.
+# They are small (~300 KB total) and required for the app to run on Render.
