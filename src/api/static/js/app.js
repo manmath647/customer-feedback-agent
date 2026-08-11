@@ -1,7 +1,9 @@
 // Executive App Framework (Dynamic Sun/Moon Theme Toggle, Drag-to-Resize Sidebar, Softened Ambient WebGL Background & Navigation)
 
 (function () {
+
     // --- Theme Management ---
+
     function applyTheme(theme) {
         const isDark = theme === 'dark';
         if (isDark) {
@@ -58,6 +60,7 @@
             if (href === path || (path === '/' && href === '/dashboard') || (path === '/dashboard' && href === '/')) {
                 link.classList.add('bg-primary/15', 'text-primary', 'border-r-4', 'border-primary', 'font-semibold');
                 link.classList.remove('text-on-surface-variant', 'text-slate-400');
+
             }
         });
 
@@ -82,7 +85,7 @@
         initShaderBackground();
     });
 
-    // --- Cursor-Resizable Sidebar Controller ---
+
     function initSidebarController() {
         const sidebar = document.getElementById('sidebar');
         const mainContent = document.getElementById('main-content');
@@ -93,13 +96,13 @@
 
         if (!sidebar) return;
 
-        // Restore saved width on desktop (>= 1024px)
+    
         const savedWidth = localStorage.getItem('sidebar_width');
         if (savedWidth && window.innerWidth >= 1024) {
             applySidebarWidth(parseInt(savedWidth, 10));
         }
 
-        // Mobile Hamburger Open
+     
         if (menuToggleBtn) {
             menuToggleBtn.addEventListener('click', () => {
                 sidebar.classList.remove('-translate-x-full');
@@ -111,7 +114,7 @@
             });
         }
 
-        // Mobile Sidebar Close
+      
         function closeMobileSidebar() {
             if (window.innerWidth < 1024) {
                 sidebar.classList.add('-translate-x-full');
@@ -126,7 +129,7 @@
         if (sidebarCloseBtn) sidebarCloseBtn.addEventListener('click', closeMobileSidebar);
         if (mobileOverlay) mobileOverlay.addEventListener('click', closeMobileSidebar);
 
-        // Desktop Drag-to-Resize Logic
+      
         if (resizer) {
             let isResizing = false;
 
