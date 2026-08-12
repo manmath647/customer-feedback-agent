@@ -12,7 +12,7 @@ from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 from starlette.middleware.base import BaseHTTPMiddleware
 
-from src.models.predict import predict_sentiment
+from src.models.predict import predict_sentiment_batch
 
 # ---------------------------------------------------------------------------
 # Rate limiter (in-memory; fine for single-worker Render free tier)
@@ -160,17 +160,24 @@ async def analyze_reviews(request: Request, file: UploadFile = File(...)):
         )
 
     # --- Inference ---
-    df["predicted_sentiment"] = df[EXPECTED_COLUMN].astype(str).apply(predict_sentiment)
+    raw_texts = df[EXPECTED_COLUMN].tolist()
+    batch_results = predict_sentiment_batch(raw_texts)
+
+    # Attach predictions and confidence scores back to DataFrame
+    df["predicted_sentiment"] = [r["predicted_sentiment"] for r in batch_results]
+    df["confidence"] = [r["confidence"] for r in batch_results]
 
     counts = df["predicted_sentiment"].value_counts().to_dict()
     sentiment_counts = {
         "positive": int(counts.get("positive", 0)),
         "negative": int(counts.get("negative", 0)),
         "neutral":  int(counts.get("neutral",  0)),
+        "insufficient_text": int(counts.get("insufficient_text", 0)),
     }
 
     return {
         "total_reviews":    len(df),
         "sentiment_counts": sentiment_counts,
-        "results":          df[[EXPECTED_COLUMN, "predicted_sentiment"]].to_dict(orient="records"),
+        "results":          df[[EXPECTED_COLUMN, "predicted_sentiment", "confidence"]].to_dict(orient="records"),
     }
+

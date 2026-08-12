@@ -1,9 +1,22 @@
-// Executive App Framework (Dynamic Sun/Moon Theme Toggle, Drag-to-Resize Sidebar, Softened Ambient WebGL Background & Navigation)
+// Executive App Framework (Theme Management, Responsive Sidebar, Quota-Safe Data Manager & Toast System)
 
 (function () {
 
-    // --- Theme Management ---
+    // --- Global Utility Helpers ---
+    window.escapeHtml = function (str) {
+        if (!str) return '';
+        return String(str).replace(/[&<>"']/g, function (m) {
+            return {
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#039;'
+            }[m];
+        });
+    };
 
+    // --- Theme Management ---
     function applyTheme(theme) {
         const isDark = theme === 'dark';
         if (isDark) {
@@ -58,13 +71,12 @@
         navLinks.forEach(link => {
             const href = link.getAttribute('href');
             if (href === path || (path === '/' && href === '/dashboard') || (path === '/dashboard' && href === '/')) {
-                link.classList.add('bg-primary/15', 'text-primary', 'border-r-4', 'border-primary', 'font-semibold');
-                link.classList.remove('text-on-surface-variant', 'text-slate-400');
-
+                link.classList.add('bg-indigo-500/15', 'text-indigo-600', 'dark:text-indigo-400', 'border-r-4', 'border-indigo-500', 'font-semibold');
+                link.classList.remove('text-slate-400', 'text-slate-600');
             }
         });
 
-        // Listen for "+ New Analysis" button clicks to clear dataset session
+        // "+ New Analysis" button handler
         document.addEventListener('click', (e) => {
             const newAnalysisBtn = e.target.closest('.btn-new-analysis');
             if (newAnalysisBtn) {
@@ -78,14 +90,10 @@
             }
         });
 
-        // Initialize Responsive & Cursor-Resizable Sidebar Controller
         initSidebarController();
-
-        // Initialize WebGL Background Shader
-        initShaderBackground();
     });
 
-
+    // --- Responsive & Cursor-Resizable Sidebar Controller ---
     function initSidebarController() {
         const sidebar = document.getElementById('sidebar');
         const mainContent = document.getElementById('main-content');
@@ -96,13 +104,11 @@
 
         if (!sidebar) return;
 
-    
         const savedWidth = localStorage.getItem('sidebar_width');
         if (savedWidth && window.innerWidth >= 1024) {
             applySidebarWidth(parseInt(savedWidth, 10));
         }
 
-     
         if (menuToggleBtn) {
             menuToggleBtn.addEventListener('click', () => {
                 sidebar.classList.remove('-translate-x-full');
@@ -114,7 +120,6 @@
             });
         }
 
-      
         function closeMobileSidebar() {
             if (window.innerWidth < 1024) {
                 sidebar.classList.add('-translate-x-full');
@@ -129,7 +134,6 @@
         if (sidebarCloseBtn) sidebarCloseBtn.addEventListener('click', closeMobileSidebar);
         if (mobileOverlay) mobileOverlay.addEventListener('click', closeMobileSidebar);
 
-      
         if (resizer) {
             let isResizing = false;
 
@@ -141,11 +145,10 @@
             });
 
             document.addEventListener('mousemove', (e) => {
-                if (!isResizing) return;
+                if (!isResizing || window.innerWidth < 1024) return;
                 let newWidth = e.clientX;
-                if (newWidth < 70) newWidth = 70;
+                if (newWidth < 80) newWidth = 80;
                 if (newWidth > 380) newWidth = 380;
-
                 applySidebarWidth(newWidth);
             });
 
@@ -154,7 +157,6 @@
                 isResizing = false;
                 document.body.style.cursor = '';
                 document.body.style.userSelect = '';
-
                 const currentWidth = sidebar.getBoundingClientRect().width;
                 localStorage.setItem('sidebar_width', currentWidth);
             });
@@ -172,116 +174,12 @@
             if (mainContent) {
                 mainContent.style.marginLeft = `${width}px`;
             }
-
             if (width < 130) {
                 sidebar.classList.add('sidebar-compact');
             } else {
                 sidebar.classList.remove('sidebar-compact');
             }
         }
-    }
-
-    // --- Softened Ambient WebGL Background Shader ---
-    function initShaderBackground() {
-        const canvas = document.getElementById('bg-canvas');
-        if (!canvas) return;
-
-        const gl = canvas.getContext('webgl');
-        if (!gl) return;
-
-        const vertexShaderSource = `
-            attribute vec2 position;
-            varying vec2 v_texCoord;
-            void main() {
-                v_texCoord = position * 0.5 + 0.5;
-                gl_Position = vec4(position, 0.0, 1.0);
-            }
-        `;
-
-        const fragmentShaderSource = `
-            precision highp float;
-            varying vec2 v_texCoord;
-            uniform float u_time;
-            uniform vec2 u_resolution;
-            uniform float u_isDark;
-
-            void main() {
-                vec2 uv = v_texCoord;
-                vec2 p = uv * 2.0 - 1.0;
-                p.x *= u_resolution.x / u_resolution.y;
-
-                float t = u_time * 0.12;
-
-                vec3 darkBase = vec3(0.01, 0.03, 0.08);
-                vec3 lightBase = vec3(0.92, 0.94, 0.98);
-
-                vec3 color = mix(lightBase, darkBase, u_isDark);
-
-                for(float i = 1.0; i < 4.0; i++) {
-                    p.x += 0.2 / i * sin(i * 2.0 * p.y + t + i * 0.5);
-                    p.y += 0.2 / i * cos(i * 2.0 * p.x + t + i * 0.8);
-
-                    float dist = length(p);
-                    vec3 darkGlow = mix(vec3(0.2, 0.3, 0.6), vec3(0.1, 0.45, 0.65), sin(t + i) * 0.5 + 0.5);
-                    vec3 lightGlow = mix(vec3(0.35, 0.3, 0.7), vec3(0.1, 0.5, 0.65), sin(t + i) * 0.5 + 0.5);
-
-                    float intensity = mix(0.03 / (dist + 0.4), 0.02 / (dist + 0.3), u_isDark);
-
-                    if (u_isDark > 0.5) {
-                        color += intensity * darkGlow;
-                    } else {
-                        color = mix(color, lightGlow, intensity * 1.5);
-                    }
-                }
-
-                gl_FragColor = vec4(color, 1.0);
-            }
-        `;
-
-        function createShader(gl, type, source) {
-            const shader = gl.createShader(type);
-            gl.shaderSource(shader, source);
-            gl.compileShader(shader);
-            return shader;
-        }
-
-        const vertexShader = createShader(gl, gl.VERTEX_SHADER, vertexShaderSource);
-        const fragmentShader = createShader(gl, gl.FRAGMENT_SHADER, fragmentShaderSource);
-        const program = gl.createProgram();
-        gl.attachShader(program, vertexShader);
-        gl.attachShader(program, fragmentShader);
-        gl.linkProgram(program);
-        gl.useProgram(program);
-
-        const positionBuffer = gl.createBuffer();
-        gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
-        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
-
-        const positionLocation = gl.getAttribLocation(program, 'position');
-        gl.enableVertexAttribArray(positionLocation);
-        gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, 0, 0);
-
-        const uTimeLocation = gl.getUniformLocation(program, 'u_time');
-        const uResLocation = gl.getUniformLocation(program, 'u_resolution');
-        const uDarkLocation = gl.getUniformLocation(program, 'u_isDark');
-
-        function resize() {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-            gl.viewport(0, 0, canvas.width, canvas.height);
-        }
-        window.addEventListener('resize', resize);
-        resize();
-
-        function renderBg(time) {
-            const isDark = document.documentElement.classList.contains('dark') ? 1.0 : 0.0;
-            gl.uniform1f(uTimeLocation, time * 0.001);
-            gl.uniform2f(uResLocation, canvas.width, canvas.height);
-            gl.uniform1f(uDarkLocation, isDark);
-            gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-            requestAnimationFrame(renderBg);
-        }
-        requestAnimationFrame(renderBg);
     }
 })();
 
@@ -299,7 +197,7 @@ window.showToast = function (message, type = 'error') {
     toast.innerHTML = `
         <span class="material-symbols-outlined text-xl">${type === 'error' ? 'error' : 'check_circle'}</span>
         <div>
-            <div class="font-bold text-xs uppercase tracking-wider opacity-90 mb-0.5">${type === 'error' ? 'Analysis Notice' : 'System Notification'}</div>
+            <div class="font-bold text-xs uppercase tracking-wider opacity-90 mb-0.5">${type === 'error' ? 'System Warning' : 'System Notification'}</div>
             <div>${message}</div>
         </div>
     `;
@@ -314,15 +212,42 @@ window.showToast = function (message, type = 'error') {
     }, 4500);
 };
 
-// --- Shared Data Manager ---
+// --- Quota-Safe Shared Data Manager ---
 window.FeedbackAgentData = {
     STORAGE_KEY: 'feedback_agent_dataset',
+    MAX_PERSISTED_ROWS: 500,
 
     save: function (data) {
+        if (!data) return;
         try {
-            sessionStorage.setItem(this.STORAGE_KEY, JSON.stringify(data));
+            // Cap data set if result list is large to prevent browser storage quota errors
+            let payloadToSave = data;
+            if (data.results && data.results.length > this.MAX_PERSISTED_ROWS) {
+                payloadToSave = {
+                    ...data,
+                    results: data.results.slice(0, this.MAX_PERSISTED_ROWS),
+                    isCapped: true
+                };
+            }
+            sessionStorage.setItem(this.STORAGE_KEY, JSON.stringify(payloadToSave));
+            if (data.results && data.results.length > this.MAX_PERSISTED_ROWS) {
+                window.showToast(`Large dataset detected (${data.results.length} rows). Stored preview of first ${this.MAX_PERSISTED_ROWS} rows client-side.`, 'error');
+            }
         } catch (e) {
-            console.error('Failed to save dataset:', e);
+            console.error('Failed to save dataset to sessionStorage:', e);
+            window.showToast('Browser storage quota exceeded. Storing aggregate stats only.', 'error');
+            try {
+                // Emergency fallback: store summary stats only
+                const summaryOnly = {
+                    total_reviews: data.total_reviews,
+                    sentiment_counts: data.sentiment_counts,
+                    results: (data.results || []).slice(0, 50),
+                    isCapped: true
+                };
+                sessionStorage.setItem(this.STORAGE_KEY, JSON.stringify(summaryOnly));
+            } catch (fallbackErr) {
+                console.error('Fallback storage failed:', fallbackErr);
+            }
         }
     },
 
@@ -331,7 +256,7 @@ window.FeedbackAgentData = {
             const raw = sessionStorage.getItem(this.STORAGE_KEY);
             return raw ? JSON.parse(raw) : null;
         } catch (e) {
-            console.error('Failed to read dataset:', e);
+            console.error('Failed to read dataset from sessionStorage:', e);
             return null;
         }
     },
