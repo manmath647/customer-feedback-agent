@@ -22,7 +22,7 @@ scipy==1.18.0
 joblib==1.5.3
 threadpoolctl==3.6.0
 transformers==4.46.3
-torch==2.5.1
+torch>=2.9.0,<3.0
 
 # Testing
 pytest==8.3.4
